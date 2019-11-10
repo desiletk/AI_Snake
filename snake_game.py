@@ -5,6 +5,12 @@ import math
 
 BLACK = {0,0,0} # background color
 WHITE = (255,255,255) # snake segment color
+RED = (255,0,0) # food color
+
+LEFT = 0
+RIGHT = 1
+UP = 2
+DOWN = 3
 
 segment_width = 17
 segment_height = 17
@@ -44,10 +50,13 @@ class SnakeGame:
 
         # check if snake died
         if self.collision_with_boundaries() or self.collision_with_self():
+            print('QUIT')
             pygame.quit()
+            quit()
 
         # check if ate food
         if self.collision_with_food():
+            self.score += 1
             self.place_food([randint(0, self.board['width']-1), randint(0, self.board['height']-1)])
         else:
             self.remove_last_point()
@@ -60,15 +69,20 @@ class SnakeGame:
     def collision_with_boundaries(self):
         if (self.snake_coords[0][0] < 0 or self.snake_coords[0][0] >= self.board['width'] or
                 self.snake_coords[0][1] < 0 or self.snake_coords[0][1] >= self.board['height']):
+            print('HIT WALL')
             return 1
         else: return 0
 
     def collision_with_self(self):
-        if self.snake_coords[0] in self.snake_coords[1:]: return 1
+        if self.snake_coords[0] in self.snake_coords[1:]:
+            print('HIT SELF')
+            return 1
         else: return 0
 
     def collision_with_food(self):
-        if self.snake_coords[0] == self.food: return 1
+        if self.snake_coords[0] == self.food:
+            print('ATE FOOD')
+            return 1
         else: return 0
 
     def remove_last_point(self):
@@ -95,6 +109,16 @@ class SnakeGame:
         self.screen.fill(pygame.Color(0,0,0))
         self.draw_snake()
         self.draw_food()
+
+        # font stuff
+        pygame.font.init()
+        myfont = pygame.font.SysFont('monospace', 20)
+        textsurface = myfont.render("Distance to food: " + str(self.food_distance_from_snake()), True, WHITE)
+        self.screen.blit(textsurface,(0,0))
+        angle, _, _, _ = self.angle_with_food()
+        textsurface = myfont.render("Angle with food: " + str(angle), True, WHITE)
+        self.screen.blit(textsurface, (0,20))
+
         pygame.display.update()
 
     def draw_snake(self):
@@ -107,7 +131,7 @@ class SnakeGame:
 
     def draw_food(self):
         if self.food != []:
-            pygame.draw.rect(self.screen, (255,0,0),
+            pygame.draw.rect(self.screen, RED,
                              (self.food[0] * (segment_width + segment_margin),
                               self.food[1] * (segment_width + segment_margin),
                               segment_width, segment_height))
@@ -137,6 +161,63 @@ class SnakeGame:
         return angle, v_snake, normalized_v_food, normalized_v_snake
 
 
+def blocked_directions(positions, bounds):
+    current_direction_vector = np.array(positions[0]) - np.array(positions[1])
+
+    left_vector = np.array([current_direction_vector[1], -current_direction_vector[0]])
+    right_vector = np.array([-current_direction_vector[1], current_direction_vector[0]])
+
+    front_blocked = is_direction_blocked(positions, current_direction_vector, bounds)
+    left_blocked = is_direction_blocked(positions, left_vector, bounds)
+    right_blocked = is_direction_blocked(positions, right_vector, bounds)
+
+    return front_blocked, left_blocked, right_blocked
+
+def is_direction_blocked(positions, current_direction_vector, bounds):
+    next = (positions[0] + current_direction_vector).tolist()
+    if (next[0] < 0 or next[0] > bounds[0] or next[1] < 0 or next[1] > bounds[1] or next in positions[:-1]):
+        return 1
+    else:
+        return 0
+
+def generate_random_direction(snake_coords, angle_with_food):
+    direction = 0
+    if angle_with_food > 0:
+        direction = 1
+    elif angle_with_food < 0:
+        direction = -1
+
+    button_dir = direction_to_button(snake_coords, direction)
+    return direction, button_dir
+
+
+def direction_to_button(positions, desired_direction):
+    if positions[0][0] - positions[1][0] < 0: # left
+        if desired_direction < 0:
+            return DOWN
+        elif desired_direction > 0:
+            return UP
+        else: return LEFT
+    elif positions[0][0] - positions[1][0] > 0: # right
+        if desired_direction < 0:
+            return UP
+        elif desired_direction > 0:
+            return DOWN
+        else: return RIGHT
+    elif positions[0][1] - positions[1][1] < 0: # up
+        if desired_direction < 0:
+            return LEFT
+        elif desired_direction > 0:
+            return RIGHT
+        else: return UP
+    elif positions[0][1] - positions[1][1] > 0: # down
+        if desired_direction < 0:
+            return RIGHT
+        elif desired_direction > 0:
+            return LEFT
+        else: return DOWN
+
+
 if __name__ == "__main__":
     game = SnakeGame()
     game.start()
@@ -157,4 +238,5 @@ if __name__ == "__main__":
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
         game.step(currDir)
-        game.clock.tick(10)
+        game.clock.tick(5)
+
