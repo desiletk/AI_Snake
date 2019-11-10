@@ -51,8 +51,8 @@ class SnakeGame:
         # check if snake died
         if self.collision_with_boundaries() or self.collision_with_self():
             #print('QUIT')
-            pygame.quit()
-            quit()
+            #pygame.quit()
+            return 1
 
         # check if ate food
         if self.collision_with_food():
@@ -62,6 +62,7 @@ class SnakeGame:
             self.remove_last_point()
 
         self.render()
+        return 0
 
     def place_food(self):
         while True:

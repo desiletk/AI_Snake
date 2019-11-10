@@ -1,6 +1,6 @@
 import snake_game
 import random
-import tqdm
+from tqdm import trange
 
 
 def generate_training_data():
@@ -9,7 +9,7 @@ def generate_training_data():
     training_games = 100
     steps_per_game = 20
 
-    for _ in tqdm.trange(training_games):
+    for _ in trange(training_games):
         # init game
         game = snake_game.SnakeGame()
         game.start()
@@ -19,7 +19,7 @@ def generate_training_data():
                 snake_dir_vector_normalized = game.angle_with_food()
 
             direction, button_dir = snake_game.generate_random_direction(game.snake_coords, angle)
-            #print(button_dir)
+
             front_blocked, left_blocked, right_blocked = snake_game.blocked_directions(game.snake_coords, [game.board['width'], game.board['height']])
 
             direction, button_dir, training_data_y = generate_training_data_y(game.snake_coords, game.angle_with_food(),
@@ -34,9 +34,9 @@ def generate_training_data():
                  food_dir_vec_normalized[0], snake_dir_vector_normalized[0],
                  food_dir_vec_normalized[1], snake_dir_vector_normalized[1]])
 
-            game.step(button_dir)
+            if game.step(button_dir) == 1: break
 
-            game.clock.tick(10)
+            game.clock.tick(500)
 
     return training_data_x, training_data_y
 
