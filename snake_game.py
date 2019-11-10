@@ -19,9 +19,9 @@ segment_margin = 3
 class SnakeGame:
     def __init__(self, board_width = 20, board_height = 20):
         pygame.init()
-        self.snake_coords = []
+        self.snake_coords = list()
         self.score = 0
-        self.food = []
+        self.food = list()
         self.done = False
         self.board = {'width': board_width, 'height': board_height}
         self.screen = pygame.display.set_mode([400,400])
@@ -30,7 +30,7 @@ class SnakeGame:
 
     def start(self):
         self.snake_init()
-        self.place_food([randint(0, self.board['width']), randint(0, self.board['height'])])
+        self.place_food()
         self.render()
 
     def snake_init(self):
@@ -50,38 +50,42 @@ class SnakeGame:
 
         # check if snake died
         if self.collision_with_boundaries() or self.collision_with_self():
-            print('QUIT')
+            #print('QUIT')
             pygame.quit()
             quit()
 
         # check if ate food
         if self.collision_with_food():
             self.score += 1
-            self.place_food([randint(0, self.board['width']-1), randint(0, self.board['height']-1)])
+            self.place_food()
         else:
             self.remove_last_point()
 
         self.render()
 
-    def place_food(self,food_coord):
-        self.food = [food_coord[0],food_coord[1]]
+    def place_food(self):
+        while True:
+            rdm_pos = [randint(0, self.board['width']), randint(0, self.board['height'])]
+            if rdm_pos not in self.snake_coords:
+                self.food = rdm_pos
+                break
 
     def collision_with_boundaries(self):
         if (self.snake_coords[0][0] < 0 or self.snake_coords[0][0] >= self.board['width'] or
                 self.snake_coords[0][1] < 0 or self.snake_coords[0][1] >= self.board['height']):
-            print('HIT WALL')
+            #print('HIT WALL')
             return 1
         else: return 0
 
     def collision_with_self(self):
         if self.snake_coords[0] in self.snake_coords[1:]:
-            print('HIT SELF')
+            #print('HIT SELF')
             return 1
         else: return 0
 
     def collision_with_food(self):
         if self.snake_coords[0] == self.food:
-            print('ATE FOOD')
+            #print('ATE FOOD')
             return 1
         else: return 0
 
@@ -173,12 +177,16 @@ def blocked_directions(positions, bounds):
 
     return front_blocked, left_blocked, right_blocked
 
+
 def is_direction_blocked(positions, current_direction_vector, bounds):
-    next = (positions[0] + current_direction_vector).tolist()
-    if (next[0] < 0 or next[0] > bounds[0] or next[1] < 0 or next[1] > bounds[1] or next in positions[:-1]):
+    next_step = (positions[0] + current_direction_vector).tolist()
+    if next_step[0] < 0 or next_step[0] > bounds[0] or \
+            next_step[1] < 0 or next_step[1] > bounds[1] or \
+            next_step in positions[:-1]:
         return 1
     else:
         return 0
+
 
 def generate_random_direction(snake_coords, angle_with_food):
     direction = 0
