@@ -16,22 +16,26 @@ segment_width = 17
 segment_height = 17
 segment_margin = 3
 
+
 class SnakeGame:
-    def __init__(self, board_width = 20, board_height = 20):
+    def __init__(self, board_width=20, board_height=20, use_gui=True):
+        self.use_gui = use_gui
         pygame.init()
         self.snake_coords = list()
         self.score = 0
         self.food = list()
         self.done = False
         self.board = {'width': board_width, 'height': board_height}
-        self.screen = pygame.display.set_mode([400,400])
-        pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
+        if use_gui:
+            self.screen = pygame.display.set_mode([400, 400])
+            pygame.display.set_caption('Snake')
 
     def start(self):
         self.snake_init()
         self.place_food()
-        self.render()
+        if self.use_gui:
+            self.render()
 
     def snake_init(self):
         # start snake in middle of board
@@ -49,9 +53,13 @@ class SnakeGame:
         self.create_new_point(key)
 
         # check if snake died
-        if self.collision_with_boundaries() or self.collision_with_self():
+        if self.collision_with_boundaries():
+            #print('wall, dead')
+            return 1
+        if self.collision_with_self():
             #print('QUIT')
             #pygame.quit()
+            #print('self, dead')
             return 1
 
         # check if ate food
@@ -61,12 +69,13 @@ class SnakeGame:
         else:
             self.remove_last_point()
 
-        self.render()
+        if self.use_gui:
+            self.render()
         return 0
 
     def place_food(self):
         while True:
-            rdm_pos = [randint(0, self.board['width']), randint(0, self.board['height'])]
+            rdm_pos = [randint(0, self.board['width']-1), randint(0, self.board['height']-1)]
             if rdm_pos not in self.snake_coords:
                 self.food = rdm_pos
                 break
@@ -198,6 +207,34 @@ def generate_random_direction(snake_coords, angle_with_food):
 
     button_dir = direction_to_button(snake_coords, direction)
     return direction, button_dir
+
+
+def direction_vector(positions, angle, direction):
+    v_current = np.array(positions[0]) - np.array(positions[1])
+    v_left = np.array(v_current[1], -v_current[0])
+    v_right = np.array(-v_current[1], v_current[0])
+
+    v_new = v_current
+
+    if direction < 0:
+        v_new = v_left
+    if direction > 0:
+        v_new = v_right
+
+    button_direction = direction_to_button(positions, v_new)
+
+    return direction, button_direction
+
+
+def vector_to_button(direction):
+    if direction.tolist() == [1,0]:
+        return 1
+    elif direction.tolist() == [-1,0]:
+        return 0
+    elif direction.tolist() == [0,1]:
+        return 3
+    else:
+        return 2
 
 
 def direction_to_button(positions, desired_direction):
