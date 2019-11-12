@@ -1,26 +1,34 @@
-import snake_game
-from random import randint
-from generate_training_data import generate_training_data
-from keras.models import Sequential
-from keras.layers import Dense
-import numpy as np
-
+from genetic_algorithm import *
+from snake_game import *
+from tqdm import trange
 
 if __name__ == "__main__":
-    training_data_x, training_data_y = generate_training_data()
-    print('done training data')
+    sol_per_pop = 50
+    num_weights = n_x*n_h + n_h*n_h2 + n_h2*n_y
 
-    model = Sequential()
-    model.add(Dense(units=9,input_dim=7))
-    model.add(Dense(units=15,activation='relu'))
-    model.add(Dense(units=3, activation='softmax'))
+    pop_size = (sol_per_pop, num_weights)
+    new_pop = np.random.choice(np.arange(-1,1,step=0.01),size=pop_size,replace=True)
 
-    model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+    num_gen = 100
 
-    print(len(training_data_x), len(training_data_y))
-    model.fit((np.array(training_data_x).reshape(-1,7)),(np.array(training_data_y).reshape(-1,3)), batch_size=512, epochs=6)
+    num_parents_mating = 12
 
-    model.save_weights('model.h5')
-    model_json = model.to_json()
-    with open('model.json', 'w') as json_file:
-        json_file.write(model_json)
+    for generation in trange(num_gen):
+        print('### GENERATION ' + str(generation) + ' ###')
+        fitness = calc_pop_fitness(new_pop, generation)
+
+        print('### FITTEST CHROMOSOME IN GENERATION ' + str(generation) + ' is having finess value: ' , np.max(fitness))
+        parents = select_mating_pool(new_pop, fitness, num_parents_mating)
+
+        print(pop_size[0] - parents.shape[0], num_weights)
+
+        offspring_crossover = crossover(parents, (pop_size[0] - parents.shape[0], num_weights))
+
+        offspring_mutation = mutation(offspring_crossover)
+
+        new_pop[0:parents.shape[0], :] = parents
+        new_pop[parents.shape[0]:, :] = offspring_mutation
+
+    print('################## TEST ##################')
+    print(new_pop[0])
+    snake_ML(new_pop[0], use_gui=True)

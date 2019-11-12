@@ -18,7 +18,7 @@ segment_margin = 3
 
 
 class SnakeGame:
-    def __init__(self, board_width=20, board_height=20, use_gui=True):
+    def __init__(self, generation = -1, board_width=20, board_height=20, use_gui=False,):
         self.use_gui = use_gui
         pygame.init()
         self.snake_coords = list()
@@ -29,7 +29,7 @@ class SnakeGame:
         self.clock = pygame.time.Clock()
         if use_gui:
             self.screen = pygame.display.set_mode([400, 400])
-            pygame.display.set_caption('Snake')
+            pygame.display.set_caption('Snake. Generation: ' + str(generation))
 
     def start(self):
         self.snake_init()
