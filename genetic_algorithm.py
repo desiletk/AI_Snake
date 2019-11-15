@@ -1,16 +1,23 @@
-from snake_game import *
-from random import choice, randint, uniform
+from random import randint, uniform
 from test import *
+from snake_game_v2 import *
 
-def calc_pop_fitness(pop, generation):
+
+def calc_pop_fitness(pop):
     fitness = []
     for i in range(pop.shape[0]):
-        fit = snake_ML(pop[i], generation)
-        print('fitness value of chromosome ' + str(i) + ' : ', fit)
-        fitness.append(fit)
+        gui = False
+        if i == range(pop.shape[0] - 1):
+            gui = True
+        game = Game(use_gui=gui, tick_rate=50, board_width=10, board_height=10)
+        score = game.play(weights=pop[i])
+        #print('fitness value of chromosome ' + str(i) + ' : ', fit)
+        fitness.append(score)
     return np.array(fitness)
 
+
 def select_mating_pool(pop, fitness, num_parents):
+    # select the best parents in current gen. for producing offspring
     parents = np.empty((num_parents, pop.shape[1]))
     for parent_num in range(num_parents):
         max_fitness_idx = np.where(fitness == np.max(fitness))

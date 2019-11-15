@@ -18,17 +18,18 @@ segment_margin = 3
 
 
 class SnakeGame:
-    def __init__(self, generation = -1, board_width=20, board_height=20, use_gui=False,):
+    def __init__(self, generation = -1, board_width=10, board_height=10, use_gui=False,):
         self.use_gui = use_gui
         pygame.init()
         self.snake_coords = list()
         self.score = 0
+        self.lifetime = 0
         self.food = list()
         self.done = False
         self.board = {'width': board_width, 'height': board_height}
         self.clock = pygame.time.Clock()
         if use_gui:
-            self.screen = pygame.display.set_mode([400, 400])
+            self.screen = pygame.display.set_mode([200, 200])
             pygame.display.set_caption('Snake. Generation: ' + str(generation))
 
     def start(self):
@@ -64,10 +65,12 @@ class SnakeGame:
 
         # check if ate food
         if self.collision_with_food():
-            self.score += 1
+            self.score += 500
             self.place_food()
         else:
             self.remove_last_point()
+        self.score += 10  # try to reward staying alive
+        self.lifetime += 1
 
         if self.use_gui:
             self.render()
@@ -227,13 +230,13 @@ def direction_vector(positions, angle, direction):
 
 
 def vector_to_button(direction):
-    if direction.tolist() == [1,0]:
+    if direction.tolist() == [1,0]:  # right, +x
         return 1
-    elif direction.tolist() == [-1,0]:
+    elif direction.tolist() == [-1,0]:  # left, -x
         return 0
-    elif direction.tolist() == [0,1]:
+    elif direction.tolist() == [0,1]:  # down, +y
         return 3
-    else:
+    else:  # direction.tolist() == [0,-1]  up, -y
         return 2
 
 
