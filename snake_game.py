@@ -2,164 +2,199 @@ import pygame
 from random import randint
 import numpy as np
 import math
+from ff_nn import forward_propagation
 
-BLACK = {0,0,0} # background color
-WHITE = (255,255,255) # snake segment color
-RED = (255,0,0) # food color
+BLACK = (0, 0, 0)  # background color
+WHITE = (255, 255, 255)  # snake color
+RED = (255, 0, 0)  # food color
 
+# keyboard directions
 LEFT = 0
 RIGHT = 1
 UP = 2
 DOWN = 3
 
-segment_width = 17
-segment_height = 17
-segment_margin = 3
+SEG_WIDTH = 17
+SEG_HEIGHT = 17
+SEG_MARGIN = 3
+
+FOOD_SCORE = 500
 
 
-class SnakeGame:
-    def __init__(self, generation = -1, board_width=10, board_height=10, use_gui=False,):
-        self.use_gui = use_gui
-        pygame.init()
-        self.snake_coords = list()
+class Snake:
+    def __init__(self, bounds, initial_length=3):
+        self.segments = []
         self.score = 0
         self.lifetime = 0
-        self.food = list()
-        self.done = False
-        self.board = {'width': board_width, 'height': board_height}
-        self.clock = pygame.time.Clock()
-        if use_gui:
-            self.screen = pygame.display.set_mode([200, 200])
-            pygame.display.set_caption('Snake. Generation: ' + str(generation))
+        self.dead = False
 
-    def start(self):
-        self.snake_init()
-        self.place_food()
-        if self.use_gui:
-            self.render()
-
-    def snake_init(self):
-        # start snake in middle of board
-        x = self.board['width']/2
-        y = self.board['height']/2
-
-        # start snake in random direction
-        vertical = randint(0,1) == 0
-        for i in range(3):
+        x = bounds['width'] / 2
+        y = bounds['height'] / 2
+        vertical = randint(0, 1) == 0
+        for i in range(initial_length):
             point = [x + i, y] if vertical else [x, y + i]
-            self.snake_coords.append(point)
+            self.segments.append(point)
 
-    def step(self, key):
-        # create new segment in given direction
-        self.create_new_point(key)
-
-        # check if snake died
-        if self.collision_with_boundaries():
-            #print('wall, dead')
-            return 1
-        if self.collision_with_self():
-            #print('QUIT')
-            #pygame.quit()
-            #print('self, dead')
-            return 1
-
-        # check if ate food
-        if self.collision_with_food():
-            self.score += 500
-            self.place_food()
-        else:
-            self.remove_last_point()
-        self.score += 10  # try to reward staying alive
+    def move(self, point, ate=False):
         self.lifetime += 1
-
-        if self.use_gui:
-            self.render()
-        return 0
-
-    def place_food(self):
-        while True:
-            rdm_pos = [randint(0, self.board['width']-1), randint(0, self.board['height']-1)]
-            if rdm_pos not in self.snake_coords:
-                self.food = rdm_pos
-                break
-
-    def collision_with_boundaries(self):
-        if (self.snake_coords[0][0] < 0 or self.snake_coords[0][0] >= self.board['width'] or
-                self.snake_coords[0][1] < 0 or self.snake_coords[0][1] >= self.board['height']):
-            #print('HIT WALL')
-            return 1
-        else: return 0
-
-    def collision_with_self(self):
-        if self.snake_coords[0] in self.snake_coords[1:]:
-            #print('HIT SELF')
-            return 1
-        else: return 0
-
-    def collision_with_food(self):
-        if self.snake_coords[0] == self.food:
-            #print('ATE FOOD')
-            return 1
-        else: return 0
+        self.segments.insert(0, point)
+        if ate is False:
+            self.remove_last_point()
 
     def remove_last_point(self):
-        self.snake_coords.pop()
+        self.segments.pop()
+
+    def length(self):
+        return len(self.segments)
+
+
+class Game:
+    def __init__(self, board_width=20, board_height=20, use_gui=False, tick_rate=10, title='Snake'):
+        pygame.init()
+        self.board = {'width': board_width, 'height': board_height}
+        self.use_gui = use_gui
+        self.tick_rate = tick_rate
+        self.snake = Snake(self.board)
+        self.food = self.new_food()
+        if use_gui:
+            pygame.font.init()
+            self.screen = pygame.display.set_mode([(SEG_WIDTH+SEG_MARGIN) * self.board['width'] + (SEG_WIDTH+SEG_MARGIN) * 12,
+                                                   (SEG_HEIGHT+SEG_MARGIN) * self.board['height'] + (SEG_HEIGHT+SEG_MARGIN) * 2])
+            pygame.display.set_caption(title)
+            self.clock = pygame.time.Clock()
+            self.render()
+
+    def play(self, max_steps=100, weights=None):
+        curr_step = 0
+        key = 0
+        while self.snake.dead is False and curr_step < max_steps:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                if event.type == pygame.KEYDOWN and weights is None:  # allow user to input
+                    if event.key == pygame.K_LEFT:
+                        key = 0
+                    if event.key == pygame.K_RIGHT:
+                        key = 1
+                    if event.key == pygame.K_UP:
+                        key = 2
+                    if event.key == pygame.K_DOWN:
+                        key = 3
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+            predicted_direction = ''
+            if weights is not None:  # predict next move
+                angle, v_snake, normalized_v_food, normalized_v_snake = self.angle_with_food()
+                front_blocked, left_blocked, right_blocked = self.blocked_direction()
+
+                inputs = np.array([left_blocked, front_blocked, right_blocked,
+                                   normalized_v_food[0], normalized_v_food[1],
+                                   normalized_v_snake[0], normalized_v_snake[1]]).reshape(-1, 7)
+
+                if self.use_gui:
+                    screen = self.screen
+                else:
+                    screen = None
+                predicted_direction = np.argmax(np.array(forward_propagation(np.array(
+                    [left_blocked, front_blocked, right_blocked,
+                     normalized_v_food[0], normalized_v_snake[0],
+                     normalized_v_food[1], normalized_v_snake[1]]).reshape(-1, 7), weights, screen=screen))) - 1
+
+                new_direction = np.array(self.snake.segments[0]) - np.array(self.snake.segments[1])
+                if predicted_direction < 0:
+                    new_direction = np.array([new_direction[1], -new_direction[0]])
+                if predicted_direction > 0:
+                    new_direction = np.array([-new_direction[1], new_direction[0]])
+
+                key = self.vector_to_button(new_direction)
+            _, _, ate = self.step(key)
+            if ate:
+                curr_step -= 25
+            curr_step += 1
+            if self.use_gui:
+                self.draw_text('Steps left: ' + str(max_steps - curr_step), 0, 205, WHITE)
+                self.draw_text('Time Alive: ' + str(self.snake.lifetime), 0, 215, WHITE)
+                self.draw_text('Score : ' + str(self.snake.score), 0, 225, WHITE)
+
+        return (self.snake.score * 1) + (self.snake.lifetime * 0)
+
+    def new_food(self, x=None, y=None):
+        if x is not None and y is not None:
+            return [x.y]
+        else:
+            while True:
+                rdm_pos = [randint(0, self.board['width'] - 1), randint(0, self.board['height'] - 1)]
+                if rdm_pos not in self.snake.segments:
+                    return rdm_pos
+
+    def step(self, key):
+        new_point = self.create_new_point(key)
+
+        hit_bounds, hit_self, hit_food = self.collisions(new_point)
+
+        if hit_food:
+            self.snake.score += FOOD_SCORE
+            self.food = self.new_food()
+
+        if hit_bounds or hit_self:
+            self.snake.dead = True
+        else:
+            self.snake.move(new_point, ate=hit_food)
+
+        if self.use_gui:
+            self.render()
+
+        return hit_bounds, hit_self, hit_food
 
     def create_new_point(self, key):
         x = y = 0
         if key == 0:
-            x = self.snake_coords[0][0] - 1
-            y = self.snake_coords[0][1]
+            x = self.snake.segments[0][0] - 1
+            y = self.snake.segments[0][1]
         if key == 1:
-            x = self.snake_coords[0][0] + 1
-            y = self.snake_coords[0][1]
+            x = self.snake.segments[0][0] + 1
+            y = self.snake.segments[0][1]
         if key == 2:
-            x = self.snake_coords[0][0]
-            y = self.snake_coords[0][1] - 1
+            x = self.snake.segments[0][0]
+            y = self.snake.segments[0][1] - 1
         if key == 3:
-            x = self.snake_coords[0][0]
-            y = self.snake_coords[0][1] + 1
-
-        self.snake_coords.insert(0, [x,y])
+            x = self.snake.segments[0][0]
+            y = self.snake.segments[0][1] + 1
+        return [x, y]
 
     def render(self):
-        self.screen.fill(pygame.Color(0,0,0))
+        self.screen.fill(BLACK)
         self.draw_snake()
         self.draw_food()
-
-        # font stuff
-        pygame.font.init()
-        myfont = pygame.font.SysFont('monospace', 20)
-        textsurface = myfont.render("Distance to food: " + str(self.food_distance_from_snake()), True, WHITE)
-        self.screen.blit(textsurface,(0,0))
-        angle, _, _, _ = self.angle_with_food()
-        textsurface = myfont.render("Angle with food: " + str(angle), True, WHITE)
-        self.screen.blit(textsurface, (0,20))
-
+        pygame.draw.line(self.screen, WHITE, [self.board['width'] * (SEG_WIDTH + SEG_MARGIN), 0], [self.board['width'] * (SEG_WIDTH+SEG_MARGIN), self.board['height'] * (SEG_HEIGHT+SEG_MARGIN)])
+        pygame.draw.line(self.screen, WHITE, [0, self.board['height'] * (SEG_HEIGHT+SEG_MARGIN)], [self.board['width'] * (SEG_WIDTH + SEG_MARGIN), self.board['height'] * (SEG_HEIGHT + SEG_MARGIN)])
+        self.clock.tick(self.tick_rate)
         pygame.display.update()
 
     def draw_snake(self):
-        for i in range(len(self.snake_coords)):
-            rect = pygame.Rect(self.snake_coords[i][0] * (segment_width + segment_margin),
-                               self.snake_coords[i][1] * (segment_height + segment_margin),
-                               segment_width, segment_height)
-
+        for i in range(self.snake.length()):
+            rect = pygame.Rect(self.snake.segments[i][0] * (SEG_WIDTH + SEG_MARGIN),
+                               self.snake.segments[i][1] * (SEG_HEIGHT + SEG_MARGIN),
+                               SEG_WIDTH, SEG_HEIGHT)
             pygame.draw.rect(self.screen, WHITE, rect)
 
     def draw_food(self):
-        if self.food != []:
+        if self.food is not []:
             pygame.draw.rect(self.screen, RED,
-                             (self.food[0] * (segment_width + segment_margin),
-                              self.food[1] * (segment_width + segment_margin),
-                              segment_width, segment_height))
+                             (self.food[0] * (SEG_WIDTH + SEG_MARGIN),
+                              self.food[1] * (SEG_WIDTH + SEG_MARGIN),
+                              SEG_WIDTH, SEG_HEIGHT))
 
-    def food_distance_from_snake(self):
-        return np.linalg.norm(np.array(self.food) - np.array(self.snake_coords[0]))
+    def draw_text(self, text, x, y, color=WHITE):
+        font = pygame.font.SysFont('monospace', 12)
+        text_surface = font.render(text, True, color)
+        self.screen.blit(text_surface, (x, y))
+        pygame.display.update()
 
     def angle_with_food(self):
         # direction vectors
-        v_food = np.array(self.food) - np.array(self.snake_coords[0])
-        v_snake = np.array(self.snake_coords[0]) - np.array(self.snake_coords[1])
+        v_food = np.array(self.food) - np.array(self.snake.segments[0])
+        v_snake = np.array(self.snake.segments[0]) - np.array(self.snake.segments[1])
 
         # normals of direction vectors
         norm_of_v_food = np.linalg.norm(v_food)
@@ -177,115 +212,46 @@ class SnakeGame:
 
         return angle, v_snake, normalized_v_food, normalized_v_snake
 
+    def vector_to_button(self, direction):
+        if direction.tolist() == [1, 0]:  # right, +x
+            return 1
+        elif direction.tolist() == [-1, 0]:  # left, -x
+            return 0
+        elif direction.tolist() == [0, 1]:  # down, +y
+            return 3
+        else:  # direction.tolist() == [0,-1]  up, -y
+            return 2
 
-def blocked_directions(positions, bounds):
-    current_direction_vector = np.array(positions[0]) - np.array(positions[1])
+    def blocked_direction(self):
+        v_current = np.array(self.snake.segments[0]) - np.array(self.snake.segments[1])
+        v_left = np.array([v_current[1], -v_current[0]])
+        v_right = np.array([-v_current[1], v_current[0]])
 
-    left_vector = np.array([current_direction_vector[1], -current_direction_vector[0]])
-    right_vector = np.array([-current_direction_vector[1], current_direction_vector[0]])
+        front_blocked = self.is_direction_blocked(v_current)
+        left_blocked = self.is_direction_blocked(v_left)
+        right_blocked = self.is_direction_blocked(v_right)
 
-    front_blocked = is_direction_blocked(positions, current_direction_vector, bounds)
-    left_blocked = is_direction_blocked(positions, left_vector, bounds)
-    right_blocked = is_direction_blocked(positions, right_vector, bounds)
+        return front_blocked, left_blocked, right_blocked
 
-    return front_blocked, left_blocked, right_blocked
+    def is_direction_blocked(self, current_direction_vector):
+        next_step = (self.snake.segments[0] + current_direction_vector).tolist()
+        hit_bounds, hit_self, _ = self.collisions(next_step)
+        return hit_bounds or hit_self
 
+    def collisions(self, point):
+        hit_bounds = self.collision_with_bounds(point)
+        hit_self = self.collision_with_self(point)
+        hit_food = self.collision_with_food(point)
 
-def is_direction_blocked(positions, current_direction_vector, bounds):
-    next_step = (positions[0] + current_direction_vector).tolist()
-    if next_step[0] < 0 or next_step[0] > bounds[0] or \
-            next_step[1] < 0 or next_step[1] > bounds[1] or \
-            next_step in positions[:-1]:
-        return 1
-    else:
-        return 0
+        return hit_bounds, hit_self, hit_food
 
+    def collision_with_bounds(self, point):
+        return (point[0] < 0 or point[0] >= self.board['width'] or
+                point[1] < 0 or point[1] >= self.board['height'])
 
-def generate_random_direction(snake_coords, angle_with_food):
-    direction = 0
-    if angle_with_food > 0:
-        direction = 1
-    elif angle_with_food < 0:
-        direction = -1
+    def collision_with_self(self, point):
+        return point in self.snake.segments[:-1]
 
-    button_dir = direction_to_button(snake_coords, direction)
-    return direction, button_dir
-
-
-def direction_vector(positions, angle, direction):
-    v_current = np.array(positions[0]) - np.array(positions[1])
-    v_left = np.array(v_current[1], -v_current[0])
-    v_right = np.array(-v_current[1], v_current[0])
-
-    v_new = v_current
-
-    if direction < 0:
-        v_new = v_left
-    if direction > 0:
-        v_new = v_right
-
-    button_direction = direction_to_button(positions, v_new)
-
-    return direction, button_direction
-
-
-def vector_to_button(direction):
-    if direction.tolist() == [1,0]:  # right, +x
-        return 1
-    elif direction.tolist() == [-1,0]:  # left, -x
-        return 0
-    elif direction.tolist() == [0,1]:  # down, +y
-        return 3
-    else:  # direction.tolist() == [0,-1]  up, -y
-        return 2
-
-
-def direction_to_button(positions, desired_direction):
-    if positions[0][0] - positions[1][0] < 0: # left
-        if desired_direction < 0:
-            return DOWN
-        elif desired_direction > 0:
-            return UP
-        else: return LEFT
-    elif positions[0][0] - positions[1][0] > 0: # right
-        if desired_direction < 0:
-            return UP
-        elif desired_direction > 0:
-            return DOWN
-        else: return RIGHT
-    elif positions[0][1] - positions[1][1] < 0: # up
-        if desired_direction < 0:
-            return LEFT
-        elif desired_direction > 0:
-            return RIGHT
-        else: return UP
-    elif positions[0][1] - positions[1][1] > 0: # down
-        if desired_direction < 0:
-            return RIGHT
-        elif desired_direction > 0:
-            return LEFT
-        else: return DOWN
-
-
-if __name__ == "__main__":
-    game = SnakeGame()
-    game.start()
-    currDir = randint(0,3)
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    currDir = 0
-                if event.key == pygame.K_RIGHT:
-                    currDir = 1
-                if event.key == pygame.K_UP:
-                    currDir = 2
-                if event.key == pygame.K_DOWN:
-                    currDir = 3
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-        game.step(currDir)
-        game.clock.tick(5)
+    def collision_with_food(self, point):
+        return point == self.food
 

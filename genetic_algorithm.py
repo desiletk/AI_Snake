@@ -1,15 +1,12 @@
 from random import randint, uniform
-from test import *
-from snake_game_v2 import *
+from snake_game import *
 
 
 def calc_pop_fitness(pop):
     fitness = []
     for i in range(pop.shape[0]):
         gui = False
-        if i == range(pop.shape[0] - 1):
-            gui = True
-        game = Game(use_gui=gui, tick_rate=50, board_width=10, board_height=10)
+        game = Game(use_gui=False, tick_rate=1000000, board_width=10, board_height=10)
         score = game.play(weights=pop[i])
         #print('fitness value of chromosome ' + str(i) + ' : ', fit)
         fitness.append(score)
