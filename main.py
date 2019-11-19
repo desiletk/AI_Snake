@@ -5,13 +5,13 @@ from ff_nn import *
 import csv
 
 if __name__ == "__main__":
-    sol_per_pop = 100
+    sol_per_pop = 250
     num_weights = n_x*n_h + n_h*n_h2 + n_h2*n_y
 
     pop_size = (sol_per_pop, num_weights)
     new_pop = np.random.choice(np.arange(-1, 1, step=0.01), size=pop_size, replace=True)
 
-    num_gen = 500
+    num_gen = 1
 
     num_parents_mating = 10
 
@@ -46,17 +46,17 @@ if __name__ == "__main__":
         max_fitness_idx = max_fitness_idx[0][0]
 
         # write weights to file
-        if generation == - 1:
+        if generation == num_gen - 1:
             np.savetxt('weights.csv', new_pop[max_fitness_idx], delimiter=',', fmt='%f')
 
-        weights = np.loadtxt('weights.csv')
+        weights = np.loadtxt('weights_final.csv')
         # print(weights)
         # play fittest individual
         #score = game.play(weights=new_pop[max_fitness_idx])
-        if np.max(fitness) > 10000: break
+        # if np.max(fitness) > 10000: break
 
     print('################## TEST ##################')
     while True:
         print('new test game')
-        game = Game(use_gui=True, tick_rate=25, board_width=10,board_height=10, title='Best of the Best')
-        game.play(weights=new_pop[max_fitness_idx])
+        game = Game(use_gui=True, tick_rate=10, board_width=10,board_height=10, title='Best of the Best')
+        game.play(weights=weights)

@@ -58,7 +58,7 @@ class Game:
         self.food = self.new_food()
         if use_gui:
             pygame.font.init()
-            self.screen = pygame.display.set_mode([(SEG_WIDTH+SEG_MARGIN) * self.board['width'] + (SEG_WIDTH+SEG_MARGIN) * 12,
+            self.screen = pygame.display.set_mode([(SEG_WIDTH+SEG_MARGIN) * self.board['width'] + (SEG_WIDTH+SEG_MARGIN) * 18,
                                                    (SEG_HEIGHT+SEG_MARGIN) * self.board['height'] + (SEG_HEIGHT+SEG_MARGIN) * 2])
             pygame.display.set_caption(title)
             self.clock = pygame.time.Clock()
@@ -109,14 +109,14 @@ class Game:
                 key = self.vector_to_button(new_direction)
             _, _, ate = self.step(key)
             if ate:
-                curr_step -= 25
+                curr_step -= 50
             curr_step += 1
             if self.use_gui:
-                self.draw_text('Steps left: ' + str(max_steps - curr_step), 0, 205, WHITE)
-                self.draw_text('Time Alive: ' + str(self.snake.lifetime), 0, 215, WHITE)
-                self.draw_text('Score : ' + str(self.snake.score), 0, 225, WHITE)
+                self.draw_text('Steps left: ' + str(max_steps - curr_step), 0, 200, WHITE)
+                self.draw_text('Time Alive: ' + str(self.snake.lifetime), 0, 210, WHITE)
+                self.draw_text('Score     : ' + str(self.snake.score), 0, 220, WHITE)
 
-        return (self.snake.score * 1) + (self.snake.lifetime * 0)
+        return (self.snake.score * 0.75) + (self.snake.lifetime * 0.25)
 
     def new_food(self, x=None, y=None):
         if x is not None and y is not None:
@@ -186,7 +186,7 @@ class Game:
                               SEG_WIDTH, SEG_HEIGHT))
 
     def draw_text(self, text, x, y, color=WHITE):
-        font = pygame.font.SysFont('monospace', 12)
+        font = pygame.font.SysFont('monospace', 13)
         text_surface = font.render(text, True, color)
         self.screen.blit(text_surface, (x, y))
         pygame.display.update()
