@@ -13,4 +13,5 @@ A base Snake game was created using Pygame with hopes of first adding a network 
  Next is adding/changing inputs to modify behavior/performance? Maybe give it some sort of angle to food, given the A* shortest distance to the food... TBD
  
  GIF of the A.I. at work:
- https://i.imgur.com/2zTvM44.gifv
+
+ ![Alt Text]( https://i.imgur.com/2zTvM44.gif)
