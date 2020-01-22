@@ -11,3 +11,6 @@ A base Snake game was created using Pygame with hopes of first adding a network 
  The network is a feed forward network and works well with an input layer of 7 nodes (left_blocked, front_blocked, right_blocked, normalized_angle_to_food(x/y), normalized direction vector(x/y)), 2 hidden layers with 9 and 15 nodes, and of course an output layer of 3 (left, straight, right). All this is visualized on screen. 
  
  Next is adding/changing inputs to modify behavior/performance? Maybe give it some sort of angle to food, given the A* shortest distance to the food... TBD
+ 
+ GIF of the A.I. at work:
+ https://i.imgur.com/2zTvM44.gifv
